@@ -2,13 +2,44 @@ import asyncio
 from agents import Agent, Runner, trace, function_tool, SQLiteSession
 from dotenv import load_dotenv
 import gradio as gr
-from digital_twin.context import TWIN_SYSTEM_PROMPT
+from digital_twin.context import TWIN_SYSTEM_PROMPT, CAREER_VALIDATOR_PROMPT
 from tools.notification_tool import record_user_details, record_unknown_question
-
+import json
 
 load_dotenv(override=True)
+MODEL = "gpt-5.5"
 
 async def chat(message, history):
+    messages = retrieveMessage(message, history)  
+    agent = Agent(
+        name="Arianne's Digital Twin",
+        instructions=TWIN_SYSTEM_PROMPT,
+        model=MODEL
+    )
+    result = await Runner.run(agent, messages)
+    twin_response = result.final_output
+
+    validation = await validate_response(twin_response, history)
+
+    if not validation["approved"]:
+        return validation["revision"]
+
+    return twin_response
+
+async def validate_response(response_text, history):
+    message = f"Validate this response:\n\n{response_text}"
+    messages = retrieveMessage(message, history)  
+    validator = Agent(
+        name="Career Validator",
+        instructions=CAREER_VALIDATOR_PROMPT,
+        model=MODEL
+    )
+
+    result = await Runner.run(validator, messages)
+
+    return json.loads(result.final_output)
+
+def retrieveMessage(message, history):
     messages = []
     for item in history:
         content = ""
@@ -21,15 +52,11 @@ async def chat(message, history):
     messages.append({
             "role": "user",
             "content": message
-        })    
+        })
+    
+    return messages
 
-    agent = Agent(
-        name="Arianne's Digital Twin",
-        instructions=TWIN_SYSTEM_PROMPT,
-        model="gpt-5.4-mini"
-    )
-    result = await Runner.run(agent, messages)
-    return result.final_output
+
 
 if __name__ == "__main__":
     examples = [
