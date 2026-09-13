@@ -1,6 +1,11 @@
 import gradio as gr
 
 custom_css = """
+.gradio-container {
+    max-width: 900px !important; /* Adjust max width (e.g., 700px, 60vw) */
+    margin: 0 auto !important;   /* Centers the app horizontally */
+}
+
 /* --- 1. SHARED RESPONSIVE STRUCTURE --- */
 .centered-container {
     max-width: 700px;
@@ -65,11 +70,20 @@ custom_css = """
 
 /* Fixed Textbox style matching the Amber/Gold design line */
 .input-wrapper textarea {
-    border: 2.5px solid #ec4899 !important; 
-    border-radius: 2px !important;
-    padding: 12px !important;
+    border: 1px solid #cbd5e1 !important;        /* Soft blue-gray border */
+    border-radius: 12px !important;              /* Rounded corners matching image */
+    padding: 16px 20px !important;              /* Generous inner spacing */
     font-size: 1rem !important;
-    box-shadow: none !important;
+    color: #64748b !important;                   /* Subtle slate text color */
+    background-color: #ffffff !important;        /* Solid white background */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important; /* Soft bottom drop shadow */
+    outline: none !important;
+}
+
+/* Optional: Subtle blue glow on focus */
+.input-wrapper textarea:focus {
+    border-color: #94a3b8 !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08) !important;
 }
 
 /* --- FIX: STRIP GLOBAL GRADIO THEME THEME VARIABLES TO FORCE TRANSPARENCY --- */
@@ -97,11 +111,11 @@ custom_css = """
     box-shadow: none !important;
 }
 
-
 .chat-display div[class*="message"] div[class*="user"],
 .chat-display [data-testid="user-message"] {
     background-color: #f9fafb !important; /* Rich blue user bubble */
-    padding: 8px 12px !important;
+    padding: 6px 8px !important;
+    border: none !important;
     box-shadow: none !important;
     border-radius: 12px !important;
 }
@@ -110,6 +124,7 @@ custom_css = """
 .chat-display [data-testid="bot-message"] {
     border-radius: 12px !important;
     padding: 12px 16px !important;
+    border: none !important;
 }
 
 /* Hide default "Chatbot" header label */
@@ -178,8 +193,7 @@ with gr.Blocks() as demo:
             placeholder='Ask me anything...',
             lines=1,
             max_lines=3,
-            scale=9,
-            submit_btn=True 
+            scale=4
         )
 
     def respond(message, history):
