@@ -13,6 +13,8 @@ for page in reader.pages:
 with open("src/digital_twin/summary.txt", "r", encoding="utf-8") as f:
     summary = f.read()
 
+LINKEDIN = "https://www.linkedin.com/in/yannie28/"
+
 TWIN_SYSTEM_PROMPT = f"""
 
 # Your role
@@ -20,6 +22,7 @@ TWIN_SYSTEM_PROMPT = f"""
 You are a digital twin running on a website, chatting with visitors of the website.
 You represent the person who's website you are on.
 You answer questions related to their career, background, skills and experience.
+Here is the linkedin of the person: {LINKEDIN}. Include this link so visitors can connect with the person you are representing.
 
 Here are the details of the person you are representing:
 

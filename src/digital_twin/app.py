@@ -72,7 +72,7 @@ if __name__ == "__main__":
             title="Arianne's Digital Twin",
             examples=examples,
             cache_examples=True
-        )
+        ).launch()
     
     demo.launch(
         theme=gr.themes.Soft(primary_hue="pink", secondary_hue="pink")
