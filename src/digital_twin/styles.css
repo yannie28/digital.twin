@@ -1,11 +1,14 @@
-import base64
-import gradio as gr
-
-custom_css = """
 @import url('https://googleapis.com');
 
 .gradio-container {
-    width: 100%;
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+.gradio-container .contain,
+.gradio-container .main {
+    max-width: none !important;
+    width: 100% !important;
 }
 
 /* --- 1. SHARED RESPONSIVE STRUCTURE --- */
@@ -88,8 +91,14 @@ custom_css = """
 
 /* Optional: Subtle blue glow on focus */
 .input-wrapper textarea:focus {
-    border-color: #94a3b8 !important;
+    border-color: #E75480 !important;
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Keep the locked textbox looking like a readonly field while a reply is generated */
+.input-wrapper textarea:disabled {
+    cursor: not-allowed !important;
+    opacity: 1 !important;
 }
 
 /* --- FIX: STRIP GLOBAL GRADIO THEME THEME VARIABLES TO FORCE TRANSPARENCY --- */
@@ -97,44 +106,91 @@ custom_css = """
     --block-background-fill: transparent !important;
     --panel-background-fill: transparent !important;
     --background-fill-secondary: transparent !important;
+    --color-accent-soft: #fa9bcf !important;
+    --border-color-accent-subdued: #fa9bcf !important;
     border: none !important;
     background: transparent !important;
     background-color: transparent !important;
     box-shadow: none !important;
-    width: 100%;
+    width: 100% !important;
+    max-width: none !important;
 }
 
-.chat-display, 
+/* Keep the scroll surface full-width so the scrollbar sits on the screen edge */
 .chat-display > div,
 .chat-display [class*="panel"],
 .chat-display [class*="wrapper"],
-.chat-display [class*="group"],
-.chat-display [class*="message-wrap"] {
+.chat-display [class*="bubble-wrap"],
+.chat-display [class*="panel-wrap"],
+.chat-display [role="log"] {
     border: none !important;
     border-color: transparent !important;
     background: transparent !important;
     background-color: transparent !important;
     box-shadow: none !important;
-    max-width: 760px;
+    max-width: none !important;
+    width: 100% !important;
 }
 
-.chat-display div[class*="message"] div[class*="user"],
-.chat-display [data-testid="user-message"] {
-    background-color: #fa9bcf !important;
-    padding: 6px 6px !important;
-    border: none !important;
-    border-radius: 12px !important;
+.chat-display [class*="bubble-wrap"],
+.chat-display [class*="panel-wrap"],
+.chat-display [role="log"] {
+    padding-bottom: 140px !important;
 }
-.chat-display div[class*="message"] div[class*="bot"],
-.chat-display div[class*="message"] div[class*="assistant"],
-.chat-display [data-testid="bot-message"] {
+
+/* Center the conversation column with the input; keep each row content-sized */
+.chat-display [class*="message-wrap"] {
+    max-width: 750px;
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+.chat-display [class*="user-row"] {
+    width: auto !important;
+    max-width: min(80%, 750px);
+    align-self: flex-end !important;
+}
+
+.chat-display [class*="bot-row"] {
+    width: auto !important;
+    max-width: min(80%, 750px);
+    align-self: flex-start !important;
+}
+
+.chat-display [class*="user-row"] .user,
+.chat-display [class*="user-row"] .message,
+.chat-display [data-testid="user"] {
+    background: #fa9bcf !important;
+    background-color: #fa9bcf !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+.chat-display [data-testid="user"] {
+    padding: 8px 14px !important;
+    border-radius: 12px !important;
+    width: fit-content !important;
+    max-width: 100%;
+}
+.chat-display [class*="user-row"] .user *,
+.chat-display [data-testid="user"] * {
+    background: transparent !important;
+    background-color: transparent !important;
+}
+.chat-display [data-testid="bot"] {
     border-radius: 12px !important;
     padding: 12px 16px !important;
-    border: none !important;    
+    border: none !important;
+    width: fit-content !important;
+    max-width: 100%;
 }
 
-/* Hide default "Chatbot" header label */
-.chat-display [class*="header"] {
+/* Hide default "Chatbot" header label and top-right toolbar icons */
+.chat-display [class*="header"],
+.chat-display .icon-button-wrapper {
     display: none !important;
 }
 
@@ -150,10 +206,11 @@ custom_css = """
     --background-fill-primary: #040814 !important;
 }
 .dark .main-title { color: #f9fafb !important; }
+.dark.main-title em { color: #E75480 !important;}
 .dark .subtitle { color: #9ca3af !important; }
 .dark .pill-button {
     border: 1px solid #1f2937 !important;
-    background-color: #fa9bcf !important;
+    background-color: #E75480 !important;
     color: #000000 !important;
 }
 .dark .pill-button:hover { background-color: #f76ab7 !important; }
@@ -172,84 +229,9 @@ custom_css = """
 }
 
 /* Isolate background color rules specifically onto message text bubbles */
-.dark .chat-display div[class*="message"] div[class*="user"],
-.dark .chat-display [data-testid="user-message"] {
-    background-color: #132342 !important; /* Rich blue user bubble */
-    color: #f9fafb !important;
+.dark .chat-display [class*="user-row"] .user,
+.dark .chat-display [class*="user-row"] .message,
+.dark .chat-display [data-testid="user"] {
+    background: #E75480 !important;
+    background-color: #E75480 !important;
 }
-"""
- 
-with gr.Blocks() as demo:
-    image_path = "src/digital_twin/digital_twin_avatar.png"
-    with open(image_path, "rb") as image_file:
-        encoded_string = base64.b64encode(image_file.read()).decode("utf-8")
-
-    # 1. The Avatar Image stays visible at the very top as a persistent header
-    gr.HTML(
-        f'<img src="data:image/png;base64,{encoded_string}" class="avatar-img" alt="Digital Twin Avatar">'
-    )
-
-    # 2. Original welcome container now holds only the text and buttons that hide
-    with gr.Column(elem_classes="centered-container") as welcome_screen:
-        gr.HTML(
-            "<h1 class='main-title'>I'm Arianne's <em>digital twin.</em><br>I"
-            " never sleep, so ask me anything.</h1>"
-        )
-        gr.HTML(
-            "<p class='subtitle'>I know her career, background, skills and"
-            " education. I can also connect you with her.</p>"
-        )
-
-        with gr.Row():
-            btn1 = gr.Button(
-                "What is your current role and what are your working on right now?",
-                elem_classes="pill-button",
-            )
-            btn2 = gr.Button(
-                "What is your primary programming language?",
-                elem_classes="pill-button",
-            )
-            btn3 = gr.Button("I'd like to get in touch", elem_classes="pill-button")
-
-    # 3. Chatbot display sits directly below the avatar header
-    chatbot = gr.Chatbot(elem_classes="chat-display", visible=False, height="70vh", show_label=False)
-
-    with gr.Row(elem_classes="input-wrapper"):
-        user_input = gr.Textbox(
-            show_label=False,
-            placeholder="How can I help you today?",
-            lines=1,
-            max_lines=3,
-            scale=4,
-        )
-
-    def respond(message, history):
-        if not message.strip():
-            return "", history, gr.update(), gr.update()
-
-        bot_reply = (
-            "Hi there, nice to meet you.\n\n"
-            "I'm Arianne's AI digital twin, here to help with questions about her "
-            "career, background, skills, and education. Let me know what you'd "
-            "like to discuss!"
-        )
-
-        history.append({"role": "user", "content": message})
-        history.append({"role": "assistant", "content": bot_reply})
-
-        return "", history, gr.update(visible=False), gr.update(visible=True)
-
-  # Triggers the transition: hides welcome_screen text/pills, reveals chatbot
-    user_input.submit(
-        respond,
-        inputs=[user_input, chatbot],
-        outputs=[user_input, chatbot, welcome_screen, chatbot],
-    )
-
-    btn1.click(lambda: ("What is your current role and what are your working on right now?"), None, user_input,)
-    btn2.click(lambda: "What is your primary programming language?", None, user_input)
-    btn3.click(lambda: "I'd like to get in touch", None, user_input)
-
-if __name__ == "__main__":
-  demo.launch(css=custom_css)
-
