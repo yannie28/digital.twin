@@ -1,3 +1,4 @@
+from pathlib import Path
 import asyncio
 from agents import Agent, Runner, trace, function_tool, SQLiteSession
 from dotenv import load_dotenv
@@ -9,6 +10,8 @@ import base64
 
 load_dotenv(override=True)
 MODEL = "gpt-5.5"
+PACKAGE_DIR = Path(__file__).resolve().parent
+APP_CSS = (PACKAGE_DIR / "styles.css").read_text(encoding="utf-8")
 
 async def validate_response(response_text, historyMessage):
     messages = list(historyMessage)
@@ -156,7 +159,7 @@ async def respond(message, history):
 
 
 with gr.Blocks(fill_width=True) as demo:
-    image_path = "src/digital_twin/digital_twin_avatar.png"
+    image_path = PACKAGE_DIR / "digital_twin_avatar.png"
     with open(image_path, "rb") as image_file:
         encoded_string = base64.b64encode(image_file.read()).decode("utf-8")
 
@@ -210,10 +213,17 @@ with gr.Blocks(fill_width=True) as demo:
         show_progress="hidden",
     )
 
-    btn1.click(lambda: DEFAULT_SUGGESTIONS[0], None, user_input)
-    btn2.click(lambda: DEFAULT_SUGGESTIONS[1], None, user_input)
-    btn3.click(lambda: DEFAULT_SUGGESTIONS[2], None, user_input)
-    chatbot.option_select(fill_suggestion, None, user_input)
+    btn1.click(lambda: DEFAULT_SUGGESTIONS[0], None, user_input, show_progress="hidden")
+    btn2.click(lambda: DEFAULT_SUGGESTIONS[1], None, user_input, show_progress="hidden")
+    btn3.click(lambda: DEFAULT_SUGGESTIONS[2], None, user_input, show_progress="hidden")
+    chatbot.option_select(
+        fill_suggestion,
+        None,
+        user_input,
+        show_progress="hidden",
+    )
+
+demo.queue()
 
 if __name__ == "__main__":
-    demo.launch(css_paths=["src/digital_twin/styles.css"], footer_links=["gradio", "settings"])
+    demo.launch(css=APP_CSS, footer_links=["gradio", "settings"])

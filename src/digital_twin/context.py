@@ -1,8 +1,9 @@
 from pypdf import PdfReader
-import os
-print("Current Working Directory:", os.getcwd())
+from pathlib import Path
 
-reader = PdfReader("src/digital_twin/linkedin_arianne.pdf")
+BASE_DIR = Path(__file__).resolve().parent
+
+reader = PdfReader(BASE_DIR / "linkedin_arianne.pdf")
 
 linkedin = ""
 for page in reader.pages:
@@ -10,7 +11,7 @@ for page in reader.pages:
     if text:
         linkedin += text
 
-with open("src/digital_twin/summary.txt", "r", encoding="utf-8") as f:
+with open(BASE_DIR / "summary.txt", "r", encoding="utf-8") as f:
     summary = f.read()
 
 LINKEDIN = "https://www.linkedin.com/in/yannie28/"

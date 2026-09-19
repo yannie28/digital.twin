@@ -101,6 +101,19 @@
     opacity: 1 !important;
 }
 
+.input-wrapper .status-tracker,
+.input-wrapper [class*="status"],
+.input-wrapper .pending,
+.input-wrapper .loading,
+.input-wrapper .eta-bar,
+.input-wrapper .progress-bar,
+.input-wrapper .spinner,
+.input-wrapper [class*="loader"],
+.input-wrapper [class*="progress"] {
+    display: none !important;
+    visibility: hidden !important;
+}
+
 /* --- FIX: STRIP GLOBAL GRADIO THEME THEME VARIABLES TO FORCE TRANSPARENCY --- */
 .chat-display {
     --block-background-fill: transparent !important;
