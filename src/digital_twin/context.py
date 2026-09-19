@@ -47,6 +47,8 @@ Always stay in character as the digital twin of the person you are representing.
 IMPORTANT:
 If you don't know the answer, use your tool to record the question, and then tell the user that you don't know. Never make up an answer.
 
+Also provide exactly 3 short follow-up questions the visitor could ask next about Arianne's career, background, skills, experience, or how to get in touch.
+
 """.strip()
 
 CAREER_VALIDATOR_PROMPT = """
@@ -83,14 +85,8 @@ DISALLOWED TOPICS:
 
 If the response contains text unrelated to Arianne's professional career like solution to mathematical questions, recent news, politics, jokes etc., reject the response.
 
-Return ONLY valid JSON:
-
-{
-  "approved": true|false,
-  "reason": "short explanation"
-  "revision": "answer question to only contain professional message based on the allowed topics and say sorry that you won't be able to give answer to the question unrelated to arianne's professional career. However, it the response contains information related to the user context then allow this response."
-}
-
 Approve only when the response is entirely professional.
 If any personal content appears, reject it.
+If approved is false, put a professional rewrite in revision.
+If approved is true, copy the original response into revision.
 """

@@ -3,8 +3,8 @@ from agents import Agent, Runner, trace, function_tool, SQLiteSession
 from dotenv import load_dotenv
 import gradio as gr
 from digital_twin.context import TWIN_SYSTEM_PROMPT, CAREER_VALIDATOR_PROMPT
+from digital_twin.schemas import TwinReply, ValidationResult
 from tools.notification_tool import record_user_details, record_unknown_question
-import json
 import base64
 
 load_dotenv(override=True)
@@ -18,11 +18,12 @@ async def validate_response(response_text, historyMessage):
     validator = Agent(
         name="Career Validator",
         instructions=CAREER_VALIDATOR_PROMPT,
-        model=MODEL
+        model=MODEL,
+        output_type=ValidationResult,
     )
 
     result = await Runner.run(validator, messages)
-    return json.loads(result.final_output)
+    return result.final_output
 
 def cleanHistoryMessage(history):
     messages = []
@@ -48,6 +49,43 @@ def cleanHistoryMessage(history):
 
 
 LOADING_MESSAGE = "Thinking..."
+STREAM_CHUNK_CHARS = 28
+STREAM_CHUNK_DELAY = 0.03
+DEFAULT_SUGGESTIONS = [
+    "What is your current role and what are you working on right now?",
+    "What is your primary programming language?",
+    "I'd like to get in touch",
+]
+
+
+def pad_suggestions(suggestions):
+    padded = [str(item).strip() for item in suggestions if str(item).strip()]
+    padded.extend(DEFAULT_SUGGESTIONS)
+    return padded[:3]
+
+
+def suggestion_options(suggestions):
+    return [{"label": text, "value": text} for text in pad_suggestions(suggestions)]
+
+
+def iter_reply_prefixes(text):
+    content = str(text or "")
+    if not content:
+        yield ""
+        return
+
+    index = 0
+    length = len(content)
+    while index < length:
+        next_index = min(index + STREAM_CHUNK_CHARS, length)
+        if next_index < length:
+            space = content.find(" ", next_index - 1)
+            newline = content.find("\n", next_index - 1)
+            breaks = [value for value in (space, newline) if value >= next_index - 1]
+            if breaks:
+                next_index = min(breaks) + 1
+        index = next_index
+        yield content[:index]
 
 
 async def respond(message, history):
@@ -65,30 +103,53 @@ async def respond(message, history):
         gr.update(visible=True),
     )
 
+    suggestions = list(DEFAULT_SUGGESTIONS)
     try:
         historyMessage = cleanHistoryMessage(history)
 
         agent = Agent(
             name="Arianne's Digital Twin",
             instructions=TWIN_SYSTEM_PROMPT,
-            model=MODEL
+            model=MODEL,
+            output_type=TwinReply,
         )
         result = await Runner.run(agent, historyMessage)
-        twin_response = result.final_output
+        twin_output = result.final_output
+        twin_response = twin_output.reply
+        suggestions = pad_suggestions(twin_output.suggestions)
 
         validation = await validate_response(twin_response, historyMessage)
 
-        if not validation["approved"]:
-            assistant_content = validation["revision"]
+        if not validation.approved:
+            assistant_content = validation.revision
         else:
             assistant_content = twin_response
     except Exception:
         assistant_content = "Sorry, something went wrong. Please try again."
 
-    completed_history = history + [{"role": "assistant", "content": assistant_content}]
+    prefixes = list(iter_reply_prefixes(assistant_content))
+    if not prefixes:
+        prefixes = [assistant_content]
+
+    for prefix in prefixes[:-1]:
+        yield (
+            gr.update(value="", interactive=False),
+            history + [{"role": "assistant", "content": prefix}],
+            gr.update(visible=False),
+            gr.update(visible=True),
+        )
+        await asyncio.sleep(STREAM_CHUNK_DELAY)
+
     yield (
         gr.update(value="", interactive=True),
-        completed_history,
+        history
+        + [
+            {
+                "role": "assistant",
+                "content": assistant_content,
+                "options": suggestion_options(suggestions),
+            }
+        ],
         gr.update(visible=False),
         gr.update(visible=True),
     )
@@ -116,15 +177,9 @@ with gr.Blocks(fill_width=True) as demo:
         )
 
         with gr.Row():
-            btn1 = gr.Button(
-                "What is your current role and what are your working on right now?",
-                elem_classes="pill-button",
-            )
-            btn2 = gr.Button(
-                "What is your primary programming language?",
-                elem_classes="pill-button",
-            )
-            btn3 = gr.Button("I'd like to get in touch", elem_classes="pill-button")
+            btn1 = gr.Button(DEFAULT_SUGGESTIONS[0], elem_classes="pill-button")
+            btn2 = gr.Button(DEFAULT_SUGGESTIONS[1], elem_classes="pill-button")
+            btn3 = gr.Button(DEFAULT_SUGGESTIONS[2], elem_classes="pill-button")
 
     # 3. Chatbot display sits directly below the avatar header (Removed type="messages" for Gradio 6)
     chatbot = gr.Chatbot(
@@ -144,6 +199,9 @@ with gr.Blocks(fill_width=True) as demo:
             scale=4,
         )
 
+    def fill_suggestion(evt: gr.SelectData):
+        return evt.value
+
     # Triggers the transition: hides welcome_screen text/pills, reveals chatbot
     user_input.submit(
         respond,
@@ -152,9 +210,10 @@ with gr.Blocks(fill_width=True) as demo:
         show_progress="hidden",
     )
 
-    btn1.click(lambda: ("What is your current role and what are your working on right now?"), None, user_input,)
-    btn2.click(lambda: "What is your primary programming language?", None, user_input)
-    btn3.click(lambda: "I'd like to get in touch", None, user_input)
+    btn1.click(lambda: DEFAULT_SUGGESTIONS[0], None, user_input)
+    btn2.click(lambda: DEFAULT_SUGGESTIONS[1], None, user_input)
+    btn3.click(lambda: DEFAULT_SUGGESTIONS[2], None, user_input)
+    chatbot.option_select(fill_suggestion, None, user_input)
 
 if __name__ == "__main__":
     demo.launch(css_paths=["src/digital_twin/styles.css"], footer_links=["gradio", "settings"])
