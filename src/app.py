@@ -15,5 +15,5 @@ app = gr.mount_gradio_app(
     demo,
     path="/",
     css=APP_CSS,
-    footer_links=["gradio", "settings"],
+    footer_links=[]
 )

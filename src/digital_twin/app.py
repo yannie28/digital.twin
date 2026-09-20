@@ -12,6 +12,16 @@ load_dotenv(override=True)
 MODEL = "gpt-5.5"
 PACKAGE_DIR = Path(__file__).resolve().parent
 APP_CSS = (PACKAGE_DIR / "styles.css").read_text(encoding="utf-8")
+LOADING_MESSAGE = "Thinking..."
+STOPPED_MESSAGE = "OK, I've stopped generating the response."
+STREAM_CHUNK_CHARS = 28
+STREAM_CHUNK_DELAY = 0.03
+DEFAULT_SUGGESTIONS = [
+    "What is your current role and what are you working on right now?",
+    "What is your primary programming language?",
+    "I'd like to get in touch",
+]
+
 
 async def validate_response(response_text, historyMessage):
     messages = list(historyMessage)
@@ -49,16 +59,6 @@ def cleanHistoryMessage(history):
             "content": str(content)
         })
     return messages
-
-
-LOADING_MESSAGE = "Thinking..."
-STREAM_CHUNK_CHARS = 28
-STREAM_CHUNK_DELAY = 0.03
-DEFAULT_SUGGESTIONS = [
-    "What is your current role and what are you working on right now?",
-    "What is your primary programming language?",
-    "I'd like to get in touch",
-]
 
 
 def pad_suggestions(suggestions):
@@ -100,7 +100,7 @@ async def respond(message, history):
     history.append({"role": "user", "content": message})
     loading_history = history + [{"role": "assistant", "content": LOADING_MESSAGE}]
     yield (
-        gr.update(value="", interactive=False),
+        gr.update(value="", interactive=False, submit_btn=False, stop_btn=True),
         loading_history,
         gr.update(visible=False),
         gr.update(visible=True),
@@ -136,7 +136,7 @@ async def respond(message, history):
 
     for prefix in prefixes[:-1]:
         yield (
-            gr.update(value="", interactive=False),
+            gr.update(value="", interactive=False, submit_btn=False, stop_btn=True),
             history + [{"role": "assistant", "content": prefix}],
             gr.update(visible=False),
             gr.update(visible=True),
@@ -144,7 +144,7 @@ async def respond(message, history):
         await asyncio.sleep(STREAM_CHUNK_DELAY)
 
     yield (
-        gr.update(value="", interactive=True),
+        gr.update(value="", interactive=True, submit_btn=True, stop_btn=False),
         history
         + [
             {
@@ -200,30 +200,109 @@ with gr.Blocks(fill_width=True) as demo:
             lines=1,
             max_lines=3,
             scale=4,
+            submit_btn=True,
+            stop_btn=False,
         )
 
-    def fill_suggestion(evt: gr.SelectData):
-        return evt.value
+    def restore_input():
+        return gr.update(interactive=True, submit_btn=True, stop_btn=False)
+
+    def stop_generation(history):
+        history = list(history or [])
+        stopped = {"role": "assistant", "content": STOPPED_MESSAGE}
+        if history and history[-1].get("role") == "assistant":
+            history[-1] = stopped
+        else:
+            history.append(stopped)
+        return restore_input(), history
 
     # Triggers the transition: hides welcome_screen text/pills, reveals chatbot
-    user_input.submit(
+    submit_event = user_input.submit(
         respond,
         inputs=[user_input, chatbot],
         outputs=[user_input, chatbot, welcome_screen, chatbot],
         show_progress="hidden",
     )
-
-    btn1.click(lambda: DEFAULT_SUGGESTIONS[0], None, user_input, show_progress="hidden")
-    btn2.click(lambda: DEFAULT_SUGGESTIONS[1], None, user_input, show_progress="hidden")
-    btn3.click(lambda: DEFAULT_SUGGESTIONS[2], None, user_input, show_progress="hidden")
-    chatbot.option_select(
-        fill_suggestion,
+    submit_event.then(
+        restore_input,
         None,
         user_input,
+        queue=False,
+        show_progress="hidden",
+    )
+
+    PREFILL_DELAY = 0.28
+
+    async def respond_from_prefill(message, history):
+        text = str(message or "").strip()
+        if not text:
+            yield gr.update(), history, gr.update(), gr.update()
+            return
+        yield (
+            gr.update(value=text, interactive=True, submit_btn=True, stop_btn=False),
+            history,
+            gr.update(),
+            gr.update(),
+        )
+        await asyncio.sleep(PREFILL_DELAY)
+        async for update in respond(text, history):
+            yield update
+
+    async def respond_from_option(evt: gr.SelectData, history):
+        value = evt.value
+        if isinstance(value, dict):
+            value = value.get("value") or value.get("label") or ""
+        async for update in respond_from_prefill(value, history):
+            yield update
+
+    def bind_suggestion_click(button, suggestion):
+        async def respond_from_pill(history):
+            async for update in respond_from_prefill(suggestion, history):
+                yield update
+
+        event = button.click(
+            respond_from_pill,
+            chatbot,
+            [user_input, chatbot, welcome_screen, chatbot],
+            show_progress="hidden",
+        )
+        event.then(
+            restore_input,
+            None,
+            user_input,
+            queue=False,
+            show_progress="hidden",
+        )
+        return event
+
+    pill_events = [
+        bind_suggestion_click(btn1, DEFAULT_SUGGESTIONS[0]),
+        bind_suggestion_click(btn2, DEFAULT_SUGGESTIONS[1]),
+        bind_suggestion_click(btn3, DEFAULT_SUGGESTIONS[2]),
+    ]
+    option_event = chatbot.option_select(
+        respond_from_option,
+        chatbot,
+        [user_input, chatbot, welcome_screen, chatbot],
+        show_progress="hidden",
+    )
+    option_event.then(
+        restore_input,
+        None,
+        user_input,
+        queue=False,
+        show_progress="hidden",
+    )
+    user_input.stop(
+        stop_generation,
+        chatbot,
+        [user_input, chatbot],
+        cancels=[submit_event, option_event, *pill_events],
+        queue=False,
         show_progress="hidden",
     )
 
 demo.queue()
 
 if __name__ == "__main__":
-    demo.launch(css=APP_CSS, footer_links=["gradio", "settings"])
+    demo.launch(css=APP_CSS, footer_links=[])
