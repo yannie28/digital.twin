@@ -1,7 +1,6 @@
 from pathlib import Path
 import asyncio
 import logging
-import os
 from agents import Agent, OpenAIChatCompletionsModel, Runner, set_tracing_disabled
 from dotenv import load_dotenv
 from openai import AsyncOpenAI, InternalServerError, NotFoundError, RateLimitError
@@ -10,16 +9,11 @@ from digital_twin.context import TWIN_SYSTEM_PROMPT, CAREER_VALIDATOR_PROMPT
 from digital_twin.schemas import TwinReply, ValidationResult
 from tools.notification_tool import record_user_details, record_unknown_question
 import base64
+from digital_twin.models import run_gemini_agent, run_gpt_agent
 
 load_dotenv(override=True)
 set_tracing_disabled(True)
 logger = logging.getLogger(__name__)
-GPT_MODEL = "gpt-4.1-mini"
-GEMINI_MODELS = ("gemini-3.8-flash", "gemini-3.6-flash")
-gemini_client = AsyncOpenAI(
-    api_key=os.getenv("GEMINI_API_KEY"),
-    base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
-)
 PACKAGE_DIR = Path(__file__).resolve().parent
 APP_CSS = (PACKAGE_DIR / "styles.css").read_text(encoding="utf-8")
 LOADING_MESSAGE = "Thinking..."
@@ -32,57 +26,15 @@ DEFAULT_SUGGESTIONS = [
     "I'd like to get in touch",
 ]
 
-def gemini_chat_model(model_name):
-    return OpenAIChatCompletionsModel(model=model_name, openai_client=gemini_client)
-
-async def run_gemini_agent(*, name, instructions, output_type, messages):
-    last_error = None
-    for model_name in GEMINI_MODELS:
-        agent = Agent(
-            name=name,
-            instructions=instructions,
-            model=gemini_chat_model(model_name),
-            output_type=output_type,
-        )
-        for attempt in range(2):
-            try:
-                return await Runner.run(agent, messages)
-            except NotFoundError as exc:
-                last_error = exc
-                logger.warning("Gemini model %s is unavailable: %s", model_name, exc)
-                break
-            except (RateLimitError, InternalServerError) as exc:
-                last_error = exc
-                logger.warning(
-                    "Gemini model %s attempt %s failed: %s",
-                    model_name,
-                    attempt + 1,
-                    exc,
-                )
-                if attempt == 0:
-                    await asyncio.sleep(2)
-                    continue
-                break
-    raise last_error
-
-async def run_gpt_agent(*, name, instructions, output_type, messages):
-    agent = Agent(
-        name=name,
-        instructions=instructions,
-        model=GPT_MODEL,
-        output_type=output_type,
-    )
-    return await Runner.run(agent, messages)
-
 async def validate_response(response_text, historyMessage):
     messages = list(historyMessage)
     message = f"Validate this response:\n\n{response_text}"
     messages.append({"role": "user", "content": message})
-    result = await run_gemini_agent(
+    result = await run_gpt_agent(
         name="Career Validator",
         instructions=CAREER_VALIDATOR_PROMPT,
         output_type=ValidationResult,
-        messages=messages,
+        messages=[{"role": "user", "content": message}]
     )
     return result.final_output
 
@@ -153,11 +105,12 @@ async def respond(message, history):
     suggestions = list(DEFAULT_SUGGESTIONS)
     try:
         historyMessage = cleanHistoryMessage(history)
-        result = await run_gemini_agent(
+        result = await run_gpt_agent(
             name="Arianne's Digital Twin",
             instructions=TWIN_SYSTEM_PROMPT,
             output_type=TwinReply,
-            messages=historyMessage,
+            #messages=historyMessage,
+            messages=[{"role": "user", "content": message}]
         )
         twin_output = result.final_output
         twin_response = twin_output.reply
