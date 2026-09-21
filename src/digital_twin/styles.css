@@ -16,19 +16,21 @@
     max-width: 700px;
     margin: 0 auto;
     text-align: center;
-    padding-top: 50px;
+    padding-top: clamp(24px, 6vw, 50px);
+    padding-left: 16px;
+    padding-right: 16px;
     font-family: 'Google Sans', 'Roboto', 'Arial', sans-serif !important;
 }
 .avatar-img {
-    width: 100px;
-    height: 100px;
+    width: clamp(72px, 18vw, 100px);
+    height: clamp(72px, 18vw, 100px);
     border-radius: 50%;
     margin: 0 auto 20px auto;
     object-fit: cover;
     display: block;
 }
 .main-title {
-    font-size: 2.5rem;
+    font-size: clamp(1.35rem, 5vw, 2.5rem);
     font-weight: 700;
     line-height: 1.2;
     margin-bottom: 10px;
@@ -38,14 +40,14 @@
     color: #fa9bcf !important;
 }
 .subtitle {
-    font-size: 1.1rem;
+    font-size: clamp(0.85rem, 2.8vw, 1.1rem);
     margin-bottom: 30px;
 }
 /* Pill suggestion buttons styling */
 .pill-button {
     border-radius: 50px !important;
-    padding: 12px 16px !important;
-    font-size: 0.9rem !important;
+    padding: clamp(8px, 1.8vw, 12px) clamp(10px, 2.4vw, 16px) !important;
+    font-size: clamp(0.72rem, 2.2vw, 0.9rem) !important;
     cursor: pointer;
     transition: background-color 0.2s, border-color 0.2s;
     background-color: #fa9bcf !important;
@@ -61,7 +63,7 @@
     transform: translateX(-50%);
     width: 100%;
     max-width: 850px;
-    padding: 20px 10px 30px 10px;
+    padding: 8px 10px 20px 10px;
     z-index: 100;
     border: none !important;
 }
@@ -77,22 +79,81 @@
     box-shadow: none !important;
 }
 
-/* Fixed Textbox style matching the Amber/Gold design line */
+/* Keep send/stop inside one field: border lives on the input-container, not the textarea */
+.input-wrapper .input-container {
+    align-items: center !important;
+    min-height: 44px !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 12px !important;
+    background-color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+    box-sizing: border-box !important;
+    padding: 0 6px 0 0 !important;
+}
+
 .input-wrapper textarea {
-    border: 1px solid #cbd5e1 !important;        /* Soft blue-gray border */
-    border-radius: 12px !important;              /* Rounded corners matching image */
-    padding: 16px 20px !important;              /* Generous inner spacing */
-    font-size: 1rem !important;
-    color: #64748b !important;                   /* Subtle slate text color */
-    background-color: #ffffff !important;        /* Solid white background */
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important; /* Soft bottom drop shadow */
+    border: none !important;
+    border-radius: 12px !important;
+    padding: 10px 12px 10px 16px !important;
+    font-size: clamp(0.85rem, 2.4vw, 1rem) !important;
+    line-height: 1.4 !important;
+    min-height: 44px !important;
+    height: auto !important;
+    box-sizing: border-box !important;
+    overflow-y: auto !important;
+    color: #64748b !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
     outline: none !important;
 }
 
-/* Optional: Subtle blue glow on focus */
-.input-wrapper textarea:focus {
+.input-wrapper [class*="scroll"],
+.input-wrapper .overflow-y-auto {
+    max-height: none !important;
+    height: auto !important;
+    overflow: visible !important;
+}
+
+.input-wrapper .input-container:focus-within {
     border-color: #E75480 !important;
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08) !important;
+}
+
+.input-wrapper [data-testid="submit-button"],
+.input-wrapper [data-testid="stop-button"] {
+    position: relative !important;
+    align-self: center !important;
+    flex-shrink: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 32px !important;
+    min-width: 32px !important;
+    height: 32px !important;
+    margin: 0 4px 0 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 8px !important;
+    background-color: #fa9bcf !important;
+    color: #1a1a1a !important;
+    box-shadow: none !important;
+    cursor: pointer !important;
+    z-index: 2 !important;
+}
+
+.input-wrapper [data-testid="submit-button"]:hover,
+.input-wrapper [data-testid="stop-button"]:hover {
+    background-color: #f76ab7 !important;
+}
+
+.input-wrapper [data-testid="submit-button"] svg {
+    width: 18px !important;
+    height: 18px !important;
+}
+
+.input-wrapper [data-testid="stop-button"] svg {
+    width: 14px !important;
+    height: 14px !important;
 }
 
 /* Keep the locked textbox looking like a readonly field while a reply is generated */
@@ -102,14 +163,11 @@
 }
 
 .input-wrapper .status-tracker,
-.input-wrapper [class*="status"],
-.input-wrapper .pending,
-.input-wrapper .loading,
 .input-wrapper .eta-bar,
 .input-wrapper .progress-bar,
 .input-wrapper .spinner,
-.input-wrapper [class*="loader"],
-.input-wrapper [class*="progress"] {
+.input-wrapper [class*="status-tracker"],
+.input-wrapper [class*="eta-bar"] {
     display: none !important;
     visibility: hidden !important;
 }
@@ -121,12 +179,14 @@
     --background-fill-secondary: transparent !important;
     --color-accent-soft: #fa9bcf !important;
     --border-color-accent-subdued: #fa9bcf !important;
+    --chatbot-text-size: clamp(0.85rem, 2.4vw, 1rem) !important;
     border: none !important;
     background: transparent !important;
     background-color: transparent !important;
     box-shadow: none !important;
     width: 100% !important;
     max-width: none !important;
+    font-size: var(--chatbot-text-size) !important;
 }
 
 /* Keep the scroll surface full-width so the scrollbar sits on the screen edge */
@@ -160,6 +220,7 @@
     border: none !important;
     background: transparent !important;
     box-shadow: none !important;
+    font-size: clamp(0.85rem, 2.4vw, 1rem) !important;
 }
 
 .chat-display [class*="user-row"] {
@@ -185,10 +246,11 @@
     box-shadow: none !important;
 }
 .chat-display [data-testid="user"] {
-    padding: 8px 14px !important;
+    padding: clamp(6px, 1.5vw, 8px) clamp(10px, 2vw, 14px) !important;
     border-radius: 12px !important;
     width: fit-content !important;
     max-width: 100%;
+    font-size: clamp(0.85rem, 2.4vw, 1rem) !important;
 }
 .chat-display [class*="user-row"] .user *,
 .chat-display [data-testid="user"] * {
@@ -206,9 +268,10 @@
 }
 .chat-display [data-testid="bot"] {
     border-radius: 12px !important;
-    padding: 12px 16px !important;
+    padding: clamp(8px, 2vw, 12px) clamp(12px, 2.4vw, 16px) !important;
     width: fit-content !important;
     max-width: 100%;
+    font-size: clamp(0.85rem, 2.4vw, 1rem) !important;
 }
 
 /* Hide default "Chatbot" header label and top-right toolbar icons */
@@ -230,13 +293,14 @@
     box-shadow: none !important;
 }
 
-.chat-display .option {
+.chat-display .option,
+.suggestion-option {
     width: fit-content !important;
     max-width: 80% !important;
     margin-left: auto !important;
     border-radius: 999px !important;
-    padding: 8px 16px !important;
-    font-size: 0.85rem !important;
+    padding: clamp(6px, 1.6vw, 8px) clamp(10px, 2.4vw, 16px) !important;
+    font-size: clamp(0.7rem, 2.1vw, 0.85rem) !important;
     line-height: 1.35 !important;
     white-space: normal !important;
     text-align: left !important;
@@ -278,19 +342,76 @@
     background-color: transparent !important;
     box-shadow: none !important;
 }
-.dark .input-wrapper textarea {
+.dark .input-wrapper .input-container {
     background-color: #0c1020 !important;
+    border-color: #374151 !important;
+}
+.dark .input-wrapper textarea {
+    background-color: transparent !important;
     color: #f9fafb !important;
 }
-.dark .chat-display .option {
+.dark .input-wrapper [data-testid="submit-button"],
+.dark .input-wrapper [data-testid="stop-button"] {
+    background-color: #E75480 !important;
+    color: #000000 !important;
+}
+.dark .chat-display .option,
+.dark .suggestion-option {
     background-color: transparent !important;
     border: 1px solid #374151 !important;
     color: #6b7280 !important;
 }
-.dark .chat-display .option:hover {
+.dark .chat-display .option:hover,
+.dark .suggestion-option:hover {
     background-color: #1f2937 !important;
     border-color: #6b7280 !important;
     color: #9ca3af !important;
+}
+
+@media (max-width: 700px) {
+    .centered-container {
+        padding-bottom: 24px;
+    }
+    .subtitle {
+        margin-bottom: 16px;
+    }
+    .input-wrapper {
+        bottom: 8px;
+        padding: 8px 8px 16px 8px;
+        max-width: 100%;
+    }
+    .chat-display [class*="bubble-wrap"],
+    .chat-display [class*="panel-wrap"],
+    .chat-display [role="log"] {
+        padding-bottom: 110px !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .main-title {
+        font-size: 1.3rem;
+    }
+    .subtitle {
+        font-size: 0.82rem;
+    }
+    .pill-button {
+        font-size: 0.72rem !important;
+        padding: 8px 10px !important;
+    }
+    .input-wrapper textarea {
+        font-size: 0.85rem !important;
+    }
+    .chat-display,
+    .chat-display [class*="message-wrap"],
+    .chat-display [data-testid="user"],
+    .chat-display [data-testid="bot"] {
+        font-size: 0.82rem !important;
+    }
+    .chat-display .option,
+    .suggestion-option {
+        font-size: 0.68rem !important;
+        padding: 5px 10px !important;
+    }
 }
 
 /* Isolate background color rules specifically onto message text bubbles */
